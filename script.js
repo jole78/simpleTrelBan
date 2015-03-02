@@ -1,75 +1,104 @@
 // Code goes here
 
-/* 
-NOTE: The Trello client library has been included as a Managed Resource.  To include the client library in your own code, you would include jQuery and then
+var app = angular.module("myApp", []);
 
-<script src="https://api.trello.com/1/client.js?key=your_application_key">...
+// fake trello svc
+app.factory("TrelloService", function($q){
 
-See https://trello.com/docs for a list of available API URLs
+  var svc = {};
 
-The API development board is at https://trello.com/api
+  var getRandomBoards = function(numberOfBoardss){
 
-The &dummy=.js part of the managed resource URL is required per http://doc.jsfiddle.net/basic/introduction.html#add-resources
-*/
-(function() {
+    return [
+      {
+        name: "Fake Board: " + 1
+      }
+    ]
+  }
 
-  var module = angular.module("TrelBan", ['readableTime']);
+  svc.getBoards = function() {
+    var response = $q.defer();
+    var boards = getRandomBoards(3);
+    response.resolve(boards);
 
-  var boardController = module.controller("boardController", function($scope) {
+    return response.promise;
+  }
 
-    $scope.Login = function() {
-      Trello.authorize({
-        interactive: false,
-        success: onAuthorize
-      });
-    }
+  return svc;
 
-    var onBoards = function(boards) {
-      $scope.boards = boards;
-    }
+});
 
-    var onAuthorize = function() {
-      Trello.get("members/me/boards", onBoards);
-    }
 
-    $scope.showCards = function(boardId) {
-      Trello.get("boards/" + boardId + "/cards", onCardsLoaded);
-      Trello.get("boards/" + boardId + "/cards/closed", onClosedCardsLoaded);
-    }
 
-    var onCardsLoaded = function(data) {
-      $.each(data, function(index, card) {
-        Trello.get("cards/" + card.id + "/actions", function(actions) {
-          if (actions && actions.length > 1) {
-            var cycleTime = new Date(actions[0].date);
-            cycleTime = cycleTime - new Date(actions[actions.length - 1].date);
-            card.cycleTime = cycleTime;
-          }
-          else
-          {
-            card.cycleTime = 0;
-          }
+var TestController = function($scope, $q, $log, TrelloService) {
+
+  $scope.Login = function() {
+
+    onAuthorize();
+//    Trello.authorize({
+  //    type: "popup",
+   //   success: onAuthorize
+   // })
+  };
+
+  var onBoards = function(boards) {
+    $log.info(boards);
+    $scope.boards = boards;
+  }
+
+  var onMember = function(member) {
+
+    //$scope.member = member;
+
+    TrelloService.getBoards()
+      .then(onBoards)
+      .fail(onError);
+
+    //Trello.get("members/me/boards", onBoards, onError);
+  }
+
+  var onError = function(e) {
+
+    $scope.error = e;
+  }
+
+  var onAuthorize = function() {
+
+    onMember();
+    //Trello.members.get("me", onMember, onError);
+
+  };
+
+//  Trello.authorize({
+ //   interactive: false,
+ //   success: onAuthorize
+ // });
+
+};
+
+app.controller("TestController", TestController);
+
+app.directive("myBoardDetails", function() {
+  return {
+    restrict: 'E',
+    replace: true,
+    templateUrl: 'boardDetails.html',
+    scope: {
+      board: '=board'
+    },
+    controller: function($scope) {
+      $scope.getCards = function(board) {
+        Trello.get("board/" + board.id + "/cards", function(result) {
+          console.log(result);
+          return result;
         });
-      });
-      $scope.cards = data;
-    }
+        $scope.cards = [{
+          name: '1'
+        }, {
+          name: '2'
+        }]
 
-    var onClosedCardsLoaded = function(data) {
-      $.each(data, function(index, card) {
-        Trello.get("cards/" + card.id + "/actions", function(actions) {
-          if (actions && actions.length > 1) {
-            var cycleTime = new Date(actions[0].date);
-            cycleTime = cycleTime - new Date(actions[actions.length - 1].date);
-            card.cycleTime = cycleTime;
-          }
-          else
-          {
-            card.cycleTime = 0;
-          }
-        });
-      });
-      $scope.closedCards = data;
+      }
     }
-
-  });
-})();
+  }
+});
